@@ -5,8 +5,29 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 )
+
+type FieldType int
+
+const (
+	Time FieldType = iota
+	Number
+	Text
+	Bool
+)
+
+type fieldSpec struct {
+	Start int
+	End   int
+	Name  string
+	Type  FieldType
+}
+
+var initialRecordSpec = [10]fieldSpec{
+	{Start: 5, End: 11, Name: "CreationDate", Type: Time},
+}
 
 // InitialRecord represents the first line of the CODA file
 type InitialRecord struct {
@@ -31,6 +52,18 @@ func parseInitialRecord(r *InitialRecord, s string) (err error) {
 
 	// Creation date
 	r.CreationDate, err = time.Parse("020106", s[5:11])
+	if err != nil {
+		return err
+	}
+	// Bank identification number
+	r.BankIdentificationNumber, err = strconv.Atoi(s[11:14])
+	if err != nil {
+		return err
+	}
+	// Duplicate check
+	r.IsDuplicate = string(s[16]) == "D"
+	// Reference
+	r.Reference = s[24:34]
 	return err
 }
 
@@ -44,7 +77,7 @@ func main() {
 	}
 	pprint, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
-		log.Fatalf("error output JSON for record %s: %v\n", r, err)
+		log.Fatalf("Error output JSON for record %v: %v\n", r, err)
 		return
 	}
 	fmt.Printf("initial record %s\n", string(pprint))
