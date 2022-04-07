@@ -12,25 +12,38 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// type FieldType int
-//
-// const (
-// 	Time FieldType = iota
-// 	Number
-// 	Text
-// 	Bool
-// )
-//
-// type fieldSpec struct {
-// 	Start int
-// 	End   int
-// 	Name  string
-// 	Type  FieldType
-// }
-//
-// var initialRecordSpec = [10]fieldSpec{
-// 	{Start: 5, End: 11, Name: "CreationDate", Type: Time},
-// }
+// parseString is a helper function to clean up substrings
+func parseString(s string) string {
+	return strings.TrimSpace(s)
+}
+
+// parseDate is a helper function to get a date from a substring
+// Date is typically in DD-MM-YY format
+func parseDate(s string) (time.Time, error) {
+	return time.Parse("020106", s)
+}
+
+// parseDecimal is a helper function to get a balance value in decimal format
+// The string is typically 12 pos + 3
+func parseDecimal(s string) (decimal.Decimal, error) {
+	balance, err := strconv.Atoi(s)
+	if err != nil {
+		return decimal.Decimal{}, err
+	}
+	// Shift decimal 3 places
+	return decimal.New(int64(balance), -3), nil
+}
+
+// parseInt is a helper function to capture a substring into an int
+func parseInt(s string) (int, error) {
+	return strconv.Atoi(s)
+}
+
+// parseSign is a helper function for getting the sign representation
+// false / 0 is used for credit, true / 1 for debit
+func parseSign(s string) bool {
+	return s == "1"
+}
 
 // Record defines the generic interface for lines in a CODA file
 type Record interface {
@@ -90,34 +103,34 @@ func (r *InitialRecord) Parse(s string) (err error) {
 	}
 
 	// Creation date
-	r.CreationDate, err = time.Parse("020106", s[5:11])
+	r.CreationDate, err = parseDate(s[5:11])
 	if err != nil {
 		return err
 	}
 	// Bank identification number
-	r.BankIdentificationNumber, err = strconv.Atoi(s[11:14])
+	r.BankIdentificationNumber, err = parseInt(s[11:14])
 	if err != nil {
 		return err
 	}
 	// Duplicate check
-	r.IsDuplicate = string(s[16]) == "D"
+	r.IsDuplicate = s[16:17] == "D"
 	// Reference
-	r.Reference = strings.TrimSpace(s[24:34])
+	r.Reference = parseString(s[24:34])
 	// Addressee
-	r.Addressee = strings.TrimSpace(s[34:60])
+	r.Addressee = parseString(s[34:60])
 	// BIC
-	r.BIC = strings.TrimSpace(s[60:71])
+	r.BIC = parseString(s[60:71])
 	// Account holder reference
-	r.AccountHolderReference, err = strconv.Atoi(s[71:82])
+	r.AccountHolderReference, err = parseInt(s[71:82])
 	if err != nil {
 		return err
 	}
 	// Transaction reference
-	r.TransactionReference = strings.TrimSpace(s[88:104])
+	r.TransactionReference = parseString(s[88:104])
 	// Related reference
-	r.RelatedReference = strings.TrimSpace(s[104:120])
+	r.RelatedReference = parseString(s[104:120])
 	// Version code
-	r.VersionCode, err = strconv.Atoi(string(s[127]))
+	r.VersionCode, err = parseInt(s[127:128])
 	if err != nil {
 		return err
 	}
@@ -131,37 +144,35 @@ func (r *OldBalanceRecord) Parse(s string) (err error) {
 		return errors.New("Not an old balance record")
 	}
 	// Account structure
-	r.AccountStructure, err = strconv.Atoi(string(s[1]))
+	r.AccountStructure, err = parseInt(s[1:2])
 	if err != nil {
 		return err
 	}
 	// Sequence number
-	r.SerialNumber, err = strconv.Atoi(s[2:5])
+	r.SerialNumber, err = parseInt(s[2:5])
 	if err != nil {
 		return err
 	}
 	// Account numner
-	r.AccountNumber = strings.TrimSpace(s[5:42])
+	r.AccountNumber = parseString(s[5:42])
 	// Old balance sign. False is credit, true is debit
-	r.BalanceSign = string(s[42]) == "1"
+	r.BalanceSign = parseSign(s[42:43])
 	// Old balance
-	balance, err := strconv.Atoi(s[43:58])
+	r.OldBalance, err = parseDecimal(s[53:58])
 	if err != nil {
 		return err
 	}
-	// Shift decimal 3 places
-	r.OldBalance = decimal.New(int64(balance), -3)
 	// Old balance date
-	r.BalanceDate, err = time.Parse("020106", s[58:64])
+	r.BalanceDate, err = parseDate(s[58:64])
 	if err != nil {
 		return err
 	}
 	// Account holder name
-	r.AccountHolderName = strings.TrimSpace(s[64:90])
+	r.AccountHolderName = parseString(s[64:90])
 	// Account description
-	r.AccountDescription = strings.TrimSpace(s[90:125])
+	r.AccountDescription = parseString(s[90:125])
 	// Sequence number
-	r.BankStatementSerialNumber, err = strconv.Atoi(s[125:128])
+	r.BankStatementSerialNumber, err = parseInt(s[125:128])
 	if err != nil {
 		return err
 	}
@@ -175,31 +186,35 @@ func (r *TransactionRecord) Parse(s string) (err error) {
 		return errors.New("Not a transaction record")
 	}
 	// Continuous sequence number
-	r.SerialNumber, err = strconv.Atoi(s[2:6])
+	r.SerialNumber, err = parseInt(s[2:6])
 	if err != nil {
 		return err
 	}
 	// Detail number
-	r.DetailNumber, err = strconv.Atoi(s[6:10])
+	r.DetailNumber, err = parseInt(s[6:10])
 	if err != nil {
 		return err
 	}
 	// Bank reference number
-	r.BankReferenceNumber = strings.TrimSpace(s[10:31])
+	r.BankReferenceNumber = parseString(s[10:31])
 	// Movement sign
-	r.BalanceSign = string(s[31]) == "1"
+	r.BalanceSign = parseSign(s[31:32])
 	// Balance
-	balance, err := strconv.Atoi(s[32:47])
+	r.Balance, err = parseDecimal(s[32:47])
 	if err != nil {
 		return err
 	}
-	// Shift decimal 3 places
-	r.Balance = decimal.New(int64(balance), -3)
 	// Value date
-	r.BalanceDate, err = time.Parse("020106", s[47:53])
+	r.BalanceDate, err = parseDate(s[47:53])
 	if err != nil {
 		return err
 	}
+	// Transaction code
+	r.TransactionCode, err = parseInt(s[53:61])
+	if err != nil {
+		return err
+	}
+	// Communcation type
 
 	return err
 }
