@@ -10,24 +10,29 @@ import (
 	"time"
 )
 
-type FieldType int
+// type FieldType int
+//
+// const (
+// 	Time FieldType = iota
+// 	Number
+// 	Text
+// 	Bool
+// )
+//
+// type fieldSpec struct {
+// 	Start int
+// 	End   int
+// 	Name  string
+// 	Type  FieldType
+// }
+//
+// var initialRecordSpec = [10]fieldSpec{
+// 	{Start: 5, End: 11, Name: "CreationDate", Type: Time},
+// }
 
-const (
-	Time FieldType = iota
-	Number
-	Text
-	Bool
-)
-
-type fieldSpec struct {
-	Start int
-	End   int
-	Name  string
-	Type  FieldType
-}
-
-var initialRecordSpec = [10]fieldSpec{
-	{Start: 5, End: 11, Name: "CreationDate", Type: Time},
+// Record defines the generic interface for lines in a CODA file
+type Record interface {
+	Parse(string) error
 }
 
 // InitialRecord represents the first line of the CODA file
@@ -44,10 +49,23 @@ type InitialRecord struct {
 	VersionCode              int
 }
 
-// parseInitialRecord parses a string into an InitialRecord
-func parseInitialRecord(r *InitialRecord, s string) (err error) {
+// OldBalanceRecord represents the old balance at the start of the CODA file
+type OldBalanceRecord struct {
+	AccountStructure          int
+	SerialNumber              int
+	AccountNumber             string
+	BalanceSign               bool // True means debit / false credit
+	OldBalance                int
+	BalanceDate               time.Time
+	AccountHolderName         string
+	AccountDescription        string
+	BankStatementSerialNumber int
+}
+
+// Parse parses a string into an InitialRecord
+func (r *InitialRecord) Parse(s string) (err error) {
 	// Check if it's an initial record
-	if string(s[0]) != "0" {
+	if !strings.HasPrefix(s, "0") {
 		return errors.New("Not an initial record")
 	}
 
@@ -86,18 +104,42 @@ func parseInitialRecord(r *InitialRecord, s string) (err error) {
 	return err
 }
 
-func main() {
-	sample := `0000013020912605        XXXXXXXXXXMichael Campbell          BBRUBEBB   03155032542                                             2`
+// parseOldBalanceRecord reads a string s into an OldBalanceRecord
+func (r *OldBalanceRecord) Parse(s string) (err error) {
+	// Check if it's an initial record
+	if !strings.HasPrefix(s, "1") {
+		return errors.New("Not an old balance record")
+	}
+	return err
+}
 
-	r := &InitialRecord{}
-	err := parseInitialRecord(r, sample)
+func main() {
+	records := []Record{}
+
+	// Initial record
+	sample := `0000013020912605        XXXXXXXXXXMichael Campbell          BBRUBEBB   03155032542                                             2`
+	initialRecord := &InitialRecord{}
+	err := initialRecord.Parse(sample)
 	if err != nil {
 		log.Fatalf("error parsing initial record: %s\n", err)
 	}
-	pprint, err := json.MarshalIndent(r, "", "    ")
+	records = append(records, initialRecord)
+
+	// Old balance record
+	sample = `12001BE28310002350520                  EUR0000000001074020291217ACCOUNTANCY J DE KNIJF    Zichtrekening                      001`
+	OldBalanceRecord := &OldBalanceRecord{}
+	err = OldBalanceRecord.Parse(sample)
 	if err != nil {
-		log.Fatalf("Error output JSON for record %v: %v\n", r, err)
-		return
+		log.Fatalf("error parsing old balance record: %s\n", err)
 	}
-	fmt.Printf("initial record %s\n", string(pprint))
+	records = append(records, OldBalanceRecord)
+
+	for _, r := range records {
+		pprint, err := json.MarshalIndent(r, "", "    ")
+		if err != nil {
+			log.Fatalf("Error output JSON for record %v: %v\n", r, err)
+			return
+		}
+		fmt.Printf("record %T %s\n", r, string(pprint))
+	}
 }
