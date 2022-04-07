@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 // type FieldType int
@@ -55,7 +57,7 @@ type OldBalanceRecord struct {
 	SerialNumber              int
 	AccountNumber             string
 	BalanceSign               bool // True means debit / false credit
-	OldBalance                int
+	OldBalance                decimal.Decimal
 	BalanceDate               time.Time
 	AccountHolderName         string
 	AccountDescription        string
@@ -110,6 +112,41 @@ func (r *OldBalanceRecord) Parse(s string) (err error) {
 	if !strings.HasPrefix(s, "1") {
 		return errors.New("Not an old balance record")
 	}
+	// Account structure
+	r.AccountStructure, err = strconv.Atoi(string(s[1]))
+	if err != nil {
+		return err
+	}
+	// Sequence number
+	r.SerialNumber, err = strconv.Atoi(s[2:5])
+	if err != nil {
+		return err
+	}
+	// Account numner
+	r.AccountNumber = strings.TrimSpace(s[5:42])
+	// Old balance sign. False is credit, true is debig
+	r.BalanceSign = string(s[42]) == "1"
+	// Old balance
+	balance, err := strconv.Atoi(s[43:58])
+	if err != nil {
+		return err
+	}
+	// Shift decimal 3 places
+	r.OldBalance = decimal.New(int64(balance), -3)
+	// Old balance date
+	r.BalanceDate, err = time.Parse("020106", s[58:64])
+	if err != nil {
+		return err
+	}
+	// Account holder name
+	r.AccountHolderName = strings.TrimSpace(s[64:90])
+	// Account description
+	r.AccountDescription = strings.TrimSpace(s[90:125])
+	// Sequence number
+	r.BankStatementSerialNumber, err = strconv.Atoi(s[125:128])
+	if err != nil {
+		return err
+	}
 	return err
 }
 
@@ -117,7 +154,7 @@ func main() {
 	records := []Record{}
 
 	// Initial record
-	sample := `0000013020912605        XXXXXXXXXXMichael Campbell          BBRUBEBB   03155032542                                             2`
+	sample := `0000002011830005        59501140  ACCOUNTANCY J DE KNIJF    BBRUBEBB   00412694022 00000                                       2`
 	initialRecord := &InitialRecord{}
 	err := initialRecord.Parse(sample)
 	if err != nil {
