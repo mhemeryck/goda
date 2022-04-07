@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -38,8 +39,8 @@ type InitialRecord struct {
 	Addressee                string
 	BIC                      string
 	AccountHolderReference   int
-	Free                     string
 	TransactionReference     string
+	RelatedReference         string
 	VersionCode              int
 }
 
@@ -63,12 +64,30 @@ func parseInitialRecord(r *InitialRecord, s string) (err error) {
 	// Duplicate check
 	r.IsDuplicate = string(s[16]) == "D"
 	// Reference
-	r.Reference = s[24:34]
+	r.Reference = strings.TrimSpace(s[24:34])
+	// Addressee
+	r.Addressee = strings.TrimSpace(s[34:60])
+	// BIC
+	r.BIC = strings.TrimSpace(s[60:71])
+	// Account holder reference
+	r.AccountHolderReference, err = strconv.Atoi(s[71:82])
+	if err != nil {
+		return err
+	}
+	// Transaction reference
+	r.TransactionReference = strings.TrimSpace(s[88:104])
+	// Related reference
+	r.RelatedReference = strings.TrimSpace(s[104:120])
+	// Version code
+	r.VersionCode, err = strconv.Atoi(string(s[127]))
+	if err != nil {
+		return err
+	}
 	return err
 }
 
 func main() {
-	sample := `0000013020912605        YjeybrNhwgMichael Campbell          BBRUBEBB   03155032542                                             2`
+	sample := `0000013020912605        XXXXXXXXXXMichael Campbell          BBRUBEBB   03155032542                                             2`
 
 	r := &InitialRecord{}
 	err := parseInitialRecord(r, sample)
