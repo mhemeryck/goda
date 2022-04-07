@@ -64,6 +64,24 @@ type OldBalanceRecord struct {
 	BankStatementSerialNumber int
 }
 
+// TransactionRecord represents a single transaction in a CODA file
+type TransactionRecord struct {
+	SerialNumber              int
+	DetailNumber              int
+	BankReferenceNumber       string
+	BalanceSign               bool // True means debit / false credit
+	Balance                   decimal.Decimal
+	BalanceDate               time.Time
+	TransactionCode           int
+	ReferenceType             int
+	Reference                 string
+	BookingDate               time.Time
+	BankStatementSerialNumber int
+	GlobalisationCode         int
+	TransactionSequence       bool
+	InformationSequence       bool
+}
+
 // Parse parses a string into an InitialRecord
 func (r *InitialRecord) Parse(s string) (err error) {
 	// Check if it's an initial record
@@ -106,7 +124,7 @@ func (r *InitialRecord) Parse(s string) (err error) {
 	return err
 }
 
-// parseOldBalanceRecord reads a string s into an OldBalanceRecord
+// Parse reads a string s into an OldBalanceRecord
 func (r *OldBalanceRecord) Parse(s string) (err error) {
 	// Check if it's an initial record
 	if !strings.HasPrefix(s, "1") {
@@ -124,7 +142,7 @@ func (r *OldBalanceRecord) Parse(s string) (err error) {
 	}
 	// Account numner
 	r.AccountNumber = strings.TrimSpace(s[5:42])
-	// Old balance sign. False is credit, true is debig
+	// Old balance sign. False is credit, true is debit
 	r.BalanceSign = string(s[42]) == "1"
 	// Old balance
 	balance, err := strconv.Atoi(s[43:58])
@@ -150,6 +168,42 @@ func (r *OldBalanceRecord) Parse(s string) (err error) {
 	return err
 }
 
+// Parse reads a string s into an OldBalanceRecord
+func (r *TransactionRecord) Parse(s string) (err error) {
+	// Check if it's an initial record
+	if !strings.HasPrefix(s, "21") {
+		return errors.New("Not a transaction record")
+	}
+	// Continuous sequence number
+	r.SerialNumber, err = strconv.Atoi(s[2:6])
+	if err != nil {
+		return err
+	}
+	// Detail number
+	r.DetailNumber, err = strconv.Atoi(s[6:10])
+	if err != nil {
+		return err
+	}
+	// Bank reference number
+	r.BankReferenceNumber = strings.TrimSpace(s[10:31])
+	// Movement sign
+	r.BalanceSign = string(s[31]) == "1"
+	// Balance
+	balance, err := strconv.Atoi(s[32:47])
+	if err != nil {
+		return err
+	}
+	// Shift decimal 3 places
+	r.Balance = decimal.New(int64(balance), -3)
+	// Value date
+	r.BalanceDate, err = time.Parse("020106", s[47:53])
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
 func main() {
 	records := []Record{}
 
@@ -164,13 +218,20 @@ func main() {
 
 	// Old balance record
 	sample = `12001BE28310002350520                  EUR0000000001074020291217ACCOUNTANCY J DE KNIJF    Zichtrekening                      001`
-	OldBalanceRecord := &OldBalanceRecord{}
-	err = OldBalanceRecord.Parse(sample)
+	oldBalanceRecord := &OldBalanceRecord{}
+	err = oldBalanceRecord.Parse(sample)
 	if err != nil {
 		log.Fatalf("error parsing old balance record: %s\n", err)
 	}
-	records = append(records, OldBalanceRecord)
+	records = append(records, oldBalanceRecord)
 
+	// Transaction record
+	sample = `2100010000a29a791e4cff4000006  0000000001350000020118001500000Factuur nummer :20172720                             02011800101 0`
+	transactionRecord := &TransactionRecord{}
+	err = transactionRecord.Parse(sample)
+	records = append(records, transactionRecord)
+
+	// Pretty print
 	for _, r := range records {
 		pprint, err := json.MarshalIndent(r, "", "    ")
 		if err != nil {
