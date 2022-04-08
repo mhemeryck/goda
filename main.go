@@ -95,6 +95,21 @@ type TransactionRecord struct {
 	InformationSequence       bool
 }
 
+// TransactionPurposeRecord holds extra information related to the transaction record
+type TransactionPurposeRecord struct {
+	ContinuousSequenceNumber int
+	DetailNumber             int
+	BankStatement            string
+	ClientReference          string
+	BIC                      string
+	TransactionType          int
+	ReasonReturnCode         string
+	PurposeCategory          string
+	Purpose                  string
+	TransactionSequence      bool
+	InformationSequence      bool
+}
+
 // Parse parses a string into an InitialRecord
 func (r *InitialRecord) Parse(s string) (err error) {
 	// Check if it's an initial record
@@ -243,6 +258,21 @@ func (r *TransactionRecord) Parse(s string) (err error) {
 	return err
 }
 
+func (r *TransactionPurposeRecord) Parse(s string) (err error) {
+	// Check if it's a transaction purpose record
+	if !strings.HasPrefix(s, "22") {
+		return errors.New("Not a transaction purpose record")
+	}
+
+	// Continuous sequence number
+	r.ContinuousSequenceNumber, err = parseInt(s[2:6])
+	if err != nil {
+		return err
+	}
+	return err
+
+}
+
 func main() {
 	records := []Record{}
 
@@ -269,6 +299,12 @@ func main() {
 	transactionRecord := &TransactionRecord{}
 	err = transactionRecord.Parse(sample)
 	records = append(records, transactionRecord)
+
+	// Transaction detail
+	sample = `2200010000                                                     a29a791e4cff4371a75bde3b3768a0dd   NTSBDEB1                   1 0`
+	transactionPurposeRecord := &TransactionPurposeRecord{}
+	err = transactionPurposeRecord.Parse(sample)
+	records = append(records, transactionPurposeRecord)
 
 	// Pretty print
 	for _, r := range records {
