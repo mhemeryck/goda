@@ -86,8 +86,8 @@ type TransactionRecord struct {
 	Balance                   decimal.Decimal
 	BalanceDate               time.Time
 	TransactionCode           int
-	ReferenceType             int
-	Reference                 string
+	CommunicationType         int
+	CommunicationZone         string
 	BookingDate               time.Time
 	BankStatementSerialNumber int
 	GlobalisationCode         int
@@ -214,8 +214,32 @@ func (r *TransactionRecord) Parse(s string) (err error) {
 	if err != nil {
 		return err
 	}
-	// Communcation type
-
+	// Communcation type: 0 none or unstructured / 1 structured
+	r.CommunicationType, err = parseInt(s[61:62])
+	if err != nil {
+		return err
+	}
+	// Communication zone
+	r.CommunicationZone = parseString(s[62:115])
+	// Entry date
+	r.BookingDate, err = parseDate(s[115:121])
+	if err != nil {
+		return err
+	}
+	// Sequence number
+	r.BankStatementSerialNumber, err = parseInt(s[121:124])
+	if err != nil {
+		return err
+	}
+	// Globalisation code
+	r.GlobalisationCode, err = parseInt(s[124:125])
+	if err != nil {
+		return err
+	}
+	// Next code: there is another transaction record
+	r.TransactionSequence = parseString(s[125:126]) == "1"
+	// There is another information record
+	r.InformationSequence = parseString(s[127:128]) == "1"
 	return err
 }
 
