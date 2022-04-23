@@ -92,9 +92,7 @@ func main() {
 				log.Fatalf("Error setting value\n")
 			}
 			fmt.Printf("Value is %v\n", value)
-			x := reflect.New(vv.Type().Elem())
-			x.Set(reflect.ValueOf(value))
-			vv.Set(x)
+			vv.Set(reflect.ValueOf(value))
 		}
 	}
 	//t := reflect.TypeOf(*r)
