@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/shopspring/decimal"
 	"log"
 	"reflect"
 	"strconv"
@@ -42,6 +43,15 @@ var sample = `0000002011830005        59501140  ACCOUNTANCY J DE KNIJF    BBRUBE
 //		field.SetInt(parseInt(sample[positions["offset"] : positions["offset"]+positions["length"]]))
 //	}
 //}
+
+func parseDecimal(s string) (decimal.Decimal, error) {
+	balance, err := strconv.Atoi(s)
+	if err != nil {
+		return decimal.Decimal{}, err
+	}
+	// Shift decimal 3 places
+	return decimal.New(int64(balance), -3), nil
+}
 
 func printFields(x interface{}) {
 	t := reflect.TypeOf(x)
