@@ -11,17 +11,22 @@ import (
 	"time"
 )
 
-type GenericRecord interface{
-	Parse(string) error
+type Record interface {
+	Prefix() string
 }
 
-// Record is the common interface between all types of records (CODA lines)
-type Record struct{}
+type InitialRecord struct {
+	CreationDate             time.Time `offset:"5" length:"6"`
+	BankIdentificationNumber int       `offset:"11" length:"3"`
+	IsDuplicate              bool      `offset:"16" length:"1"`
+	Reference                string    `offset:"24" length:"10"`
+}
 
-// Parse is the generic record string parser
-func (r *Record) Parse(s string) error {
-	t := reflect.TypeOf(r).Elem()
-	v := reflect.ValueOf(r).Elem()
+func (r InitialRecord) Prefix() string {
+	return "0"
+}
+
+func parse(s string, t reflect.Type, v reflect.Value) error {
 	fmt.Printf("Type %v value %v\n", t, v)
 	for i := 0; i < t.NumField(); i++ {
 		tt := t.Field(i)
@@ -63,17 +68,25 @@ func (r *Record) Parse(s string) error {
 	return nil
 }
 
-type InitialRecord struct {
-	*Record
-	CreationDate             time.Time `offset:"5" length:"6"`
-	BankIdentificationNumber int       `offset:"11" length:"3"`
-	IsDuplicate              bool      `offset:"16" length:"1"`
-	Reference                string    `offset:"24" length:"10"`
-}
+// Parse is the generic record string parser
+func Parse(s string) ([]Record, error) {
+	records := make([]Record, 0)
 
-//func (r *InitialRecord) Parse(s string) error {
-//	return r.Parse(s)
-//}
+	var r Record
+	if strings.HasPrefix(s, "0") {
+		r = &InitialRecord{}
+		t := reflect.TypeOf(r).Elem()
+		v := reflect.ValueOf(r).Elem()
+		err := parse(s, t, v)
+		if err != nil {
+			return records, err
+		}
+	}
+
+	// Copy the result
+	records = append(records, r)
+	return records, nil
+}
 
 func parseDecimal(s string) (decimal.Decimal, error) {
 	balance, err := strconv.Atoi(s)
@@ -102,9 +115,8 @@ func printFields(x interface{}) {
 var sample = `0000002011830005        59501140  ACCOUNTANCY J DE KNIJF    BBRUBEBB   00412694022 00000                                       2`
 
 func main() {
-	// r := InitialRecord{time.Now(), 123, false, "456"}
-	r := &InitialRecord{}
-	err := r.Parse(sample)
+	records, err := Parse(sample)
+	r := records[0]
 	if err != nil {
 		log.Fatalf("Could not parse sample %v: %v\n", r, err)
 		return
