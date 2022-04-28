@@ -1,14 +1,18 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/shopspring/decimal"
 	"log"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 // parse implements the common parse functionality, using reflection
@@ -66,7 +70,18 @@ type InitialRecord struct {
 	Addressee                string    `offset:"34" length:"26"`
 }
 
+type OldBalanceRecord struct {
+	AccountStructure int    `offset:"1" length:"1"`
+	SequenceNumber   int    `offset:"2" length:"3"`
+	AccountNumber    string `offset:"5" length:"37"`
+}
+
+// Parse populates an initial record from a string
 func (r *InitialRecord) Parse(s string) error {
+	if !strings.HasPrefix(s, "0") {
+		return errors.New("Wrong prefix")
+	}
+
 	err := parse(s, reflect.TypeOf(r).Elem(), reflect.ValueOf(r).Elem())
 	if err != nil {
 		return err
@@ -76,21 +91,31 @@ func (r *InitialRecord) Parse(s string) error {
 	return nil
 }
 
-// Parse is the generic record string parser
-func Parse(s string) ([]Record, error) {
-	records := make([]Record, 0)
-
-	var r Record
-	if strings.HasPrefix(s, "0") {
-		r = &InitialRecord{}
+// Parse populates an old balance record from a string
+func (r *OldBalanceRecord) Parse(s string) error {
+	if !strings.HasPrefix(s, "1") {
+		return errors.New("Wrong prefix")
 	}
-	err := r.Parse(s)
+
+	err := parse(s, reflect.TypeOf(r).Elem(), reflect.ValueOf(r).Elem())
 	if err != nil {
-		return records, err
+		return err
+	}
+	return nil
+}
+
+// Parse is the generic record string parser
+func Parse(line string) (r Record, err error) {
+	if strings.HasPrefix(line, "0") {
+		r = &InitialRecord{}
+	} else if strings.HasPrefix(line, "1") {
+		r = &OldBalanceRecord{}
+	} else {
+		return nil, nil
 	}
 
-	records = append(records, r)
-	return records, nil
+	err = r.Parse(line)
+	return r, err
 }
 
 func parseDecimal(s string) (decimal.Decimal, error) {
@@ -102,31 +127,33 @@ func parseDecimal(s string) (decimal.Decimal, error) {
 	return decimal.New(int64(balance), -3), nil
 }
 
-func printFields(x interface{}) {
-	t := reflect.TypeOf(x)
-	v := reflect.ValueOf(x)
-	if t.Kind() != reflect.Struct {
-		return
-	}
+//var sample = `0000002011830005        59501140  ACCOUNTANCY J DE KNIJF    BBRUBEBB   00412694022 00000                                       2`
 
-	n := t.NumField()
-	for i := 0; i < n; i++ {
-		tt := t.Field(i)
-		vv := v.Field(i)
-		fmt.Printf("Field %v: name %v, type %v tag %v value %v\n", i, tt.Name, tt.Type, tt.Tag, vv)
-	}
-}
-
-var sample = `0000002011830005        59501140  ACCOUNTANCY J DE KNIJF    BBRUBEBB   00412694022 00000                                       2`
+const filename = "./sample.cod"
 
 func main() {
-	records, err := Parse(sample)
-	r := records[0]
+	f, err := os.Open(filename)
+	defer f.Close()
 	if err != nil {
-		log.Fatalf("Could not parse sample %v: %v\n", r, err)
-		return
+		log.Fatalf("error opening file %s: %v\n", filename, err)
+	}
+	scanner := bufio.NewScanner(f)
+
+	records := []Record{}
+
+	var r Record
+	for scanner.Scan() {
+		line := scanner.Text()
+		r, err = Parse(line)
+		if err != nil {
+			log.Fatalf("error parsing line %s: %v\n", line, err)
+		}
+		if r != nil {
+			records = append(records, r)
+		}
 	}
 
+	r = records[1]
 	// Pretty print
 	pprint, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
