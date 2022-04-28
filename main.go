@@ -20,18 +20,20 @@ type InitialRecord struct {
 	BankIdentificationNumber int       `offset:"11" length:"3"`
 	IsDuplicate              bool      `offset:"16" length:"1"`
 	Reference                string    `offset:"24" length:"10"`
+	Addressee                string    `offset:"34" length:"26"`
 }
 
 func (r InitialRecord) Prefix() string {
 	return "0"
 }
 
+// parse implements the common parse functionality, using reflection
 func parse(s string, t reflect.Type, v reflect.Value) error {
-	fmt.Printf("Type %v value %v\n", t, v)
+	// fmt.Printf("Type %v value %v\n", t, v)
 	for i := 0; i < t.NumField(); i++ {
 		tt := t.Field(i)
 		vv := v.Field(i)
-		fmt.Printf("Field %v: name %v, type %v tag %v value %v\n", i, tt.Name, tt.Type, tt.Tag, vv)
+		// fmt.Printf("Field %v: name %v, type %v tag %v value %v\n", i, tt.Name, tt.Type, tt.Tag, vv)
 		offset, err := strconv.Atoi(tt.Tag.Get("offset"))
 		if err != nil {
 			return err
@@ -46,22 +48,22 @@ func parse(s string, t reflect.Type, v reflect.Value) error {
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Value is %d\n", value)
+			// fmt.Printf("Value is %d\n", value)
 			vv.SetInt(int64(value))
 		case reflect.TypeOf(string("")):
 			value := strings.TrimSpace(s[offset : offset+length])
-			fmt.Printf("Value is %s\n", value)
+			// fmt.Printf("Value is %s\n", value)
 			vv.SetString(value)
 		case reflect.TypeOf(bool(false)):
 			value := s[offset:offset+length] != ""
-			fmt.Printf("Value is %t\n", value)
+			// fmt.Printf("Value is %t\n", value)
 			vv.SetBool(value)
 		case reflect.TypeOf(time.Time{}):
 			value, err := time.Parse("020106", s[offset:offset+length])
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Value is %v\n", value)
+			// fmt.Printf("Value is %v\n", value)
 			vv.Set(reflect.ValueOf(value))
 		}
 	}
@@ -75,15 +77,16 @@ func Parse(s string) ([]Record, error) {
 	var r Record
 	if strings.HasPrefix(s, "0") {
 		r = &InitialRecord{}
-		t := reflect.TypeOf(r).Elem()
-		v := reflect.ValueOf(r).Elem()
-		err := parse(s, t, v)
-		if err != nil {
-			return records, err
-		}
 	}
 
-	// Copy the result
+	// Use reflection on the record to parse the date into it
+	t := reflect.TypeOf(r).Elem()
+	v := reflect.ValueOf(r).Elem()
+	err := parse(s, t, v)
+	if err != nil {
+		return records, err
+	}
+
 	records = append(records, r)
 	return records, nil
 }
