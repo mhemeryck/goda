@@ -11,22 +11,6 @@ import (
 	"time"
 )
 
-type Record interface {
-	Prefix() string
-}
-
-type InitialRecord struct {
-	CreationDate             time.Time `offset:"5" length:"6"`
-	BankIdentificationNumber int       `offset:"11" length:"3"`
-	IsDuplicate              bool      `offset:"16" length:"1"`
-	Reference                string    `offset:"24" length:"10"`
-	Addressee                string    `offset:"34" length:"26"`
-}
-
-func (r InitialRecord) Prefix() string {
-	return "0"
-}
-
 // parse implements the common parse functionality, using reflection
 func parse(s string, t reflect.Type, v reflect.Value) error {
 	// fmt.Printf("Type %v value %v\n", t, v)
@@ -70,6 +54,28 @@ func parse(s string, t reflect.Type, v reflect.Value) error {
 	return nil
 }
 
+type Record interface {
+	Parse(string) error
+}
+
+type InitialRecord struct {
+	CreationDate             time.Time `offset:"5" length:"6"`
+	BankIdentificationNumber int       `offset:"11" length:"3"`
+	IsDuplicate              bool      `offset:"16" length:"1"`
+	Reference                string    `offset:"24" length:"10"`
+	Addressee                string    `offset:"34" length:"26"`
+}
+
+func (r *InitialRecord) Parse(s string) error {
+	err := parse(s, reflect.TypeOf(r).Elem(), reflect.ValueOf(r).Elem())
+	if err != nil {
+		return err
+	}
+	// Specific duplicate check
+	r.IsDuplicate = s[16:17] == "D"
+	return nil
+}
+
 // Parse is the generic record string parser
 func Parse(s string) ([]Record, error) {
 	records := make([]Record, 0)
@@ -78,11 +84,7 @@ func Parse(s string) ([]Record, error) {
 	if strings.HasPrefix(s, "0") {
 		r = &InitialRecord{}
 	}
-
-	// Use reflection on the record to parse the date into it
-	t := reflect.TypeOf(r).Elem()
-	v := reflect.ValueOf(r).Elem()
-	err := parse(s, t, v)
+	err := r.Parse(s)
 	if err != nil {
 		return records, err
 	}
