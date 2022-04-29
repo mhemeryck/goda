@@ -78,6 +78,8 @@ func Parse(line string) (r Record, err error) {
 		r = &InitialRecord{}
 	} else if strings.HasPrefix(line, "1") {
 		r = &OldBalanceRecord{}
+	} else if strings.HasPrefix(line, "21") {
+		r = &MovementRecord{}
 	} else {
 		return nil, nil
 	}
@@ -117,6 +119,20 @@ type OldBalanceRecord struct {
 }
 
 type MovementRecord struct {
+	SequenceNumber      int             `offset:"2" length:"4"`
+	DetailNumber        int             `offset:"6" length:"4"`
+	BankReferenceNumber string          `offset:"10" length:"21"`
+	MovementSign        int             `offset:"31" length:"1"`
+	Amount              decimal.Decimal `offset:"32" length:"15"`
+	ValueDate           time.Time       `offset:"47" length:"6"`
+	TransactionCode     int             `offset:"53" length:"8"`
+	CommunicationType   int             `offset:"61" length:"1"`
+	CommunicationZone   string          `offset:"62" length:"53"`
+	EntryDate           time.Time       `offset:"115" length:"6"`
+	SequenceNumberPaper int             `offset:"121" length:"3"`
+	GlobalisationCode   int             `offset:"124" length:"1"`
+	NextCode            int             `offset:"125" length:"1"`
+	LinkCode            int             `offset:"127" length:"1"`
 }
 
 // Parse populates an initial record from a string
@@ -145,12 +161,13 @@ func (r *OldBalanceRecord) Parse(s string) error {
 
 // Parse populates a movement record from a string
 func (r *MovementRecord) Parse(s string) error {
-	if !strings.HasPrefix(s, "2") {
+	if !strings.HasPrefix(s, "21") {
 		return errors.New("Wrong prefix")
 	}
 
 	return parse(s, reflect.TypeOf(r).Elem(), reflect.ValueOf(r).Elem())
 }
+
 //var sample = `0000002011830005        59501140  ACCOUNTANCY J DE KNIJF    BBRUBEBB   00412694022 00000                                       2`
 
 const filename = "./sample.cod"
@@ -176,7 +193,7 @@ func main() {
 		}
 	}
 
-	r = records[1]
+	r = records[2]
 	// Pretty print
 	pprint, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
