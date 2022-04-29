@@ -138,6 +138,17 @@ type MovementRecord1 struct {
 }
 
 type MovementRecord2 struct {
+	SequenceNumber      int    `offset:"2" length:"4"`
+	DetailNumber        int    `offset:"6" length:"4"`
+	Communication       string `offset:"10" length:"53"`
+	CustomerReference   string `offset:"63" length:"35"`
+	CounterPartyBIC     string `offset:"98" length:"11"`
+	RTransactionType    string `offset:"112" length:"1"`
+	ISOReasonReturnCode string `offset:"113" length:"4"`
+	CategoryPurpose     string `offset:"117" length:"4"`
+	Purpose             string `offset:"121" length:"4"`
+	NextCode            int    `offset:"125" length:"1"`
+	LinkCode            int    `offset:"127" length:"1"`
 }
 
 // Parse populates an initial record from a string
