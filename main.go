@@ -82,6 +82,8 @@ func Parse(line string) (r Record, err error) {
 		r = &MovementRecord1{}
 	} else if strings.HasPrefix(line, "22") {
 		r = &MovementRecord2{}
+	} else if strings.HasPrefix(line, "23") {
+		r = &MovementRecord3{}
 	} else {
 		return nil, nil
 	}
@@ -151,6 +153,16 @@ type MovementRecord2 struct {
 	LinkCode            int    `offset:"127" length:"1"`
 }
 
+type MovementRecord3 struct {
+	SequenceNumber            int    `offset:"2" length:"4"`
+	DetailNumber              int    `offset:"6" length:"4"`
+	CounterPartyAccountNumber string `offset:"10" length:"37"`
+	CounterPartyName          string `offset:"47" length:"35"`
+	Communication             string `offset:"82" length:"43"`
+	NextCode                  int    `offset:"125" length:"1"`
+	LinkCode                  int    `offset:"127" length:"1"`
+}
+
 // Parse populates an initial record from a string
 func (r *InitialRecord) Parse(s string) error {
 	if !strings.HasPrefix(s, "0") {
@@ -193,6 +205,15 @@ func (r *MovementRecord2) Parse(s string) error {
 	return parse(s, reflect.TypeOf(r).Elem(), reflect.ValueOf(r).Elem())
 }
 
+// Parse populates a movement record 3 from a string
+func (r *MovementRecord3) Parse(s string) error {
+	if !strings.HasPrefix(s, "23") {
+		return errors.New("Wrong prefix")
+	}
+
+	return parse(s, reflect.TypeOf(r).Elem(), reflect.ValueOf(r).Elem())
+}
+
 //var sample = `0000002011830005        59501140  ACCOUNTANCY J DE KNIJF    BBRUBEBB   00412694022 00000                                       2`
 
 const filename = "./sample.cod"
@@ -218,7 +239,7 @@ func main() {
 		}
 	}
 
-	r = records[3]
+	r = records[4]
 	// Pretty print
 	pprint, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
