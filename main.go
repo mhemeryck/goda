@@ -86,6 +86,8 @@ func Parse(line string) (r Record, err error) {
 		r = &MovementRecord3{}
 	} else if strings.HasPrefix(line, "31") {
 		r = &InformationRecord1{}
+	} else if strings.HasPrefix(line, "32") {
+		r = &InformationRecord2{}
 	} else {
 		return nil, nil
 	}
@@ -176,6 +178,14 @@ type InformationRecord1 struct {
 	LinkCode               int    `offset:"127" length:"1"`
 }
 
+type InformationRecord2 struct {
+	SequenceNumber int    `offset:"2" length:"4"`
+	DetailNumber   int    `offset:"6" length:"4"`
+	Communication  string `offset:"10" length:"105"`
+	NextCode       int    `offset:"125" length:"1"`
+	LinkCode       int    `offset:"127" length:"1"`
+}
+
 // Parse populates an initial record from a string
 func (r *InitialRecord) Parse(s string) error {
 	if !strings.HasPrefix(s, "0") {
@@ -235,6 +245,14 @@ func (r *InformationRecord1) Parse(s string) error {
 	return parse(s, reflect.TypeOf(r).Elem(), reflect.ValueOf(r).Elem())
 }
 
+func (r *InformationRecord2) Parse(s string) error {
+	if !strings.HasPrefix(s, "32") {
+		return errors.New("Wrong prefix")
+	}
+
+	return parse(s, reflect.TypeOf(r).Elem(), reflect.ValueOf(r).Elem())
+}
+
 //var sample = `0000002011830005        59501140  ACCOUNTANCY J DE KNIJF    BBRUBEBB   00412694022 00000                                       2`
 
 const filename = "./sample.cod"
@@ -260,12 +278,13 @@ func main() {
 		}
 	}
 
-	r = records[5]
-	// Pretty print
-	pprint, err := json.MarshalIndent(r, "", "    ")
-	if err != nil {
-		log.Fatalf("Error output JSON for record %v: %v\n", r, err)
-		return
+	for _, r := range records {
+		// Pretty print
+		pprint, err := json.MarshalIndent(r, "", "    ")
+		if err != nil {
+			log.Fatalf("Error output JSON for record %v: %v\n", r, err)
+			return
+		}
+		fmt.Printf("record %T %s\n", r, string(pprint))
 	}
-	fmt.Printf("record %T %s\n", r, string(pprint))
 }
