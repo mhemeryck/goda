@@ -116,6 +116,9 @@ type OldBalanceRecord struct {
 	SequenceNumberStatement int             `offset:"125" length:"3"`
 }
 
+type MovementRecord struct {
+}
+
 // Parse populates an initial record from a string
 func (r *InitialRecord) Parse(s string) error {
 	if !strings.HasPrefix(s, "0") {
@@ -137,13 +140,17 @@ func (r *OldBalanceRecord) Parse(s string) error {
 		return errors.New("Wrong prefix")
 	}
 
-	err := parse(s, reflect.TypeOf(r).Elem(), reflect.ValueOf(r).Elem())
-	if err != nil {
-		return err
-	}
-	return nil
+	return parse(s, reflect.TypeOf(r).Elem(), reflect.ValueOf(r).Elem())
 }
 
+// Parse populates a movement record from a string
+func (r *MovementRecord) Parse(s string) error {
+	if !strings.HasPrefix(s, "2") {
+		return errors.New("Wrong prefix")
+	}
+
+	return parse(s, reflect.TypeOf(r).Elem(), reflect.ValueOf(r).Elem())
+}
 //var sample = `0000002011830005        59501140  ACCOUNTANCY J DE KNIJF    BBRUBEBB   00412694022 00000                                       2`
 
 const filename = "./sample.cod"
