@@ -79,7 +79,9 @@ func Parse(line string) (r Record, err error) {
 	} else if strings.HasPrefix(line, "1") {
 		r = &OldBalanceRecord{}
 	} else if strings.HasPrefix(line, "21") {
-		r = &MovementRecord{}
+		r = &MovementRecord1{}
+	} else if strings.HasPrefix(line, "22") {
+		r = &MovementRecord2{}
 	} else {
 		return nil, nil
 	}
@@ -118,7 +120,7 @@ type OldBalanceRecord struct {
 	SequenceNumberStatement int             `offset:"125" length:"3"`
 }
 
-type MovementRecord struct {
+type MovementRecord1 struct {
 	SequenceNumber      int             `offset:"2" length:"4"`
 	DetailNumber        int             `offset:"6" length:"4"`
 	BankReferenceNumber string          `offset:"10" length:"21"`
@@ -133,6 +135,9 @@ type MovementRecord struct {
 	GlobalisationCode   int             `offset:"124" length:"1"`
 	NextCode            int             `offset:"125" length:"1"`
 	LinkCode            int             `offset:"127" length:"1"`
+}
+
+type MovementRecord2 struct {
 }
 
 // Parse populates an initial record from a string
@@ -160,8 +165,17 @@ func (r *OldBalanceRecord) Parse(s string) error {
 }
 
 // Parse populates a movement record from a string
-func (r *MovementRecord) Parse(s string) error {
+func (r *MovementRecord1) Parse(s string) error {
 	if !strings.HasPrefix(s, "21") {
+		return errors.New("Wrong prefix")
+	}
+
+	return parse(s, reflect.TypeOf(r).Elem(), reflect.ValueOf(r).Elem())
+}
+
+// Parse populates a movement record 2 from a string
+func (r *MovementRecord2) Parse(s string) error {
+	if !strings.HasPrefix(s, "22") {
 		return errors.New("Wrong prefix")
 	}
 
@@ -193,7 +207,7 @@ func main() {
 		}
 	}
 
-	r = records[2]
+	r = records[3]
 	// Pretty print
 	pprint, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
