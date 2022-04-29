@@ -88,6 +88,8 @@ func Parse(line string) (r Record, err error) {
 		r = &InformationRecord1{}
 	} else if strings.HasPrefix(line, "32") {
 		r = &InformationRecord2{}
+	} else if strings.HasPrefix(line, "33") {
+		r = &InformationRecord3{}
 	} else {
 		return nil, nil
 	}
@@ -186,6 +188,14 @@ type InformationRecord2 struct {
 	LinkCode       int    `offset:"127" length:"1"`
 }
 
+type InformationRecord3 struct {
+	SequenceNumber int    `offset:"2" length:"4"`
+	DetailNumber   int    `offset:"6" length:"4"`
+	Communication  string `offset:"10" length:"90"`
+	NextCode       int    `offset:"125" length:"1"`
+	LinkCode       int    `offset:"127" length:"1"`
+}
+
 // Parse populates an initial record from a string
 func (r *InitialRecord) Parse(s string) error {
 	if !strings.HasPrefix(s, "0") {
@@ -247,6 +257,14 @@ func (r *InformationRecord1) Parse(s string) error {
 
 func (r *InformationRecord2) Parse(s string) error {
 	if !strings.HasPrefix(s, "32") {
+		return errors.New("Wrong prefix")
+	}
+
+	return parse(s, reflect.TypeOf(r).Elem(), reflect.ValueOf(r).Elem())
+}
+
+func (r *InformationRecord3) Parse(s string) error {
+	if !strings.HasPrefix(s, "33") {
 		return errors.New("Wrong prefix")
 	}
 
