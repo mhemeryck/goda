@@ -105,11 +105,15 @@ type InitialRecord struct {
 }
 
 type OldBalanceRecord struct {
-	AccountStructure int             `offset:"1" length:"1"`
-	SequenceNumber   int             `offset:"2" length:"3"`
-	AccountNumber    string          `offset:"5" length:"37"`
-	OldBalanceSign   int             `offset:"42" length:"1"`
-	OldBalance       decimal.Decimal `offset:"43" length:"15"`
+	AccountStructure        int             `offset:"1" length:"1"`
+	SequenceNumberPaper     int             `offset:"2" length:"3"`
+	AccountNumber           string          `offset:"5" length:"37"`
+	OldBalanceSign          int             `offset:"42" length:"1"`
+	OldBalance              decimal.Decimal `offset:"43" length:"15"`
+	OldBalanceDate          time.Time       `offset:"58" length:"6"`
+	AccountHolderName       string          `offset:"64" length:"26"`
+	AccountDescription      string          `offset:"90" length:"35"`
+	SequenceNumberStatement int             `offset:"125" length:"3"`
 }
 
 // Parse populates an initial record from a string
@@ -165,7 +169,7 @@ func main() {
 		}
 	}
 
-	r = records[0]
+	r = records[1]
 	// Pretty print
 	pprint, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
