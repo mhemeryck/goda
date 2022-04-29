@@ -90,6 +90,8 @@ func Parse(line string) (r Record, err error) {
 		r = &InformationRecord2{}
 	} else if strings.HasPrefix(line, "33") {
 		r = &InformationRecord3{}
+	} else if strings.HasPrefix(line, "8") {
+		r = &NewBalanceRecord{}
 	} else {
 		return nil, nil
 	}
@@ -196,6 +198,15 @@ type InformationRecord3 struct {
 	LinkCode       int    `offset:"127" length:"1"`
 }
 
+type NewBalanceRecord struct {
+	SequenceNumber int             `offset:"1" length:"3"`
+	AccountNumber  string          `offset:"4" length:"37"`
+	NewBalanceSign int             `offset:"41" length:"1" `
+	NewBalance     decimal.Decimal `offset:"42" length:"15"`
+	NewBalanceDate time.Time       `offset:"57" length:"6"`
+	LinkCode       int             `offset:"127" length:"1"`
+}
+
 // Parse populates an initial record from a string
 func (r *InitialRecord) Parse(s string) error {
 	if !strings.HasPrefix(s, "0") {
@@ -265,6 +276,14 @@ func (r *InformationRecord2) Parse(s string) error {
 
 func (r *InformationRecord3) Parse(s string) error {
 	if !strings.HasPrefix(s, "33") {
+		return errors.New("Wrong prefix")
+	}
+
+	return parse(s, reflect.TypeOf(r).Elem(), reflect.ValueOf(r).Elem())
+}
+
+func (r *NewBalanceRecord) Parse(s string) error {
+	if !strings.HasPrefix(s, "8") {
 		return errors.New("Wrong prefix")
 	}
 
