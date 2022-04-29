@@ -19,10 +19,12 @@ import (
 // The type and value passed in shall represent the reflected type / value of the struct we want to parse the data into
 func parse(s string, t reflect.Type, v reflect.Value) error {
 	// fmt.Printf("Type %v value %v\n", t, v)
+	// Loop through each of the struct fields
 	for i := 0; i < t.NumField(); i++ {
 		tt := t.Field(i)
 		vv := v.Field(i)
 		// fmt.Printf("Field %v: name %v, type %v tag %v value %v\n", i, tt.Name, tt.Type, tt.Tag, vv)
+		// Get the offset and length from the annotated struct fields
 		offset, err := strconv.Atoi(tt.Tag.Get("offset"))
 		if err != nil {
 			return err
@@ -31,6 +33,7 @@ func parse(s string, t reflect.Type, v reflect.Value) error {
 		if err != nil {
 			return err
 		}
+		// Switch to correct parser by using the field type
 		switch vv.Type() {
 		case reflect.TypeOf(int(0)):
 			value, err := strconv.Atoi(s[offset : offset+length])
@@ -93,6 +96,12 @@ type InitialRecord struct {
 	IsDuplicate              bool      `offset:"16" length:"1"`
 	Reference                string    `offset:"24" length:"10"`
 	Addressee                string    `offset:"34" length:"26"`
+	BIC                      string    `offset:"60" length:"11"`
+	IdentificationNumber     int       `offset:"71" length:"11"`
+	SeparateApplicationCode  int       `offset:"83" length:"5"`
+	TransactionReference     string    `offset:"88" length:"16"`
+	RelatedReference         string    `offset:"104" length:"16"`
+	VersionCode              string    `offset:"127" length:"1"`
 }
 
 type OldBalanceRecord struct {
@@ -131,7 +140,6 @@ func (r *OldBalanceRecord) Parse(s string) error {
 	return nil
 }
 
-
 //var sample = `0000002011830005        59501140  ACCOUNTANCY J DE KNIJF    BBRUBEBB   00412694022 00000                                       2`
 
 const filename = "./sample.cod"
@@ -157,7 +165,7 @@ func main() {
 		}
 	}
 
-	r = records[1]
+	r = records[0]
 	// Pretty print
 	pprint, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
