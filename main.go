@@ -92,6 +92,10 @@ func Parse(line string) (r Record, err error) {
 		r = &InformationRecord3{}
 	} else if strings.HasPrefix(line, "8") {
 		r = &NewBalanceRecord{}
+	} else if strings.HasPrefix(line, "4") {
+		r = &FreeCommunicationRecord{}
+	} else if strings.HasPrefix(line, "9") {
+		r = &TrailerRecord{}
 	} else {
 		return nil, nil
 	}
@@ -207,6 +211,20 @@ type NewBalanceRecord struct {
 	LinkCode       int             `offset:"127" length:"1"`
 }
 
+type FreeCommunicationRecord struct {
+	SequenceNumber    int    `offset:"2" length:"4"`
+	DetailNumber      int    `offset:"6" length:"4"`
+	FreeCommunication string `offset:"32" length:"80"`
+	LinkCode          int    `offset:"127" length:"1"`
+}
+
+type TrailerRecord struct {
+	NumberRecords    int             `offset:"16" length:"6"`
+	DebitMovement    decimal.Decimal `offset:"22" length:"15"`
+	CreditMovement   decimal.Decimal `offset:"37" length:"15"`
+	MultipleFileCode int             `offset:"127" length:"1"`
+}
+
 // Parse populates an initial record from a string
 func (r *InitialRecord) Parse(s string) error {
 	if !strings.HasPrefix(s, "0") {
@@ -284,6 +302,22 @@ func (r *InformationRecord3) Parse(s string) error {
 
 func (r *NewBalanceRecord) Parse(s string) error {
 	if !strings.HasPrefix(s, "8") {
+		return errors.New("Wrong prefix")
+	}
+
+	return parse(s, reflect.TypeOf(r).Elem(), reflect.ValueOf(r).Elem())
+}
+
+func (r *FreeCommunicationRecord) Parse(s string) error {
+	if !strings.HasPrefix(s, "4") {
+		return errors.New("Wrong prefix")
+	}
+
+	return parse(s, reflect.TypeOf(r).Elem(), reflect.ValueOf(r).Elem())
+}
+
+func (r *TrailerRecord) Parse(s string) error {
+	if !strings.HasPrefix(s, "9") {
 		return errors.New("Wrong prefix")
 	}
 
