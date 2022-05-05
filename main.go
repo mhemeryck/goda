@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-
+	"reflect"
 )
 
 const filename = "./sample.cod"
@@ -41,4 +41,11 @@ func main() {
 		}
 		fmt.Printf("record %T %s\n", r, string(pprint))
 	}
+
+	r = records[1]
+	out, err := generate(reflect.TypeOf(r).Elem(), reflect.ValueOf(r).Elem())
+	if err != nil {
+		log.Fatalf("Error regenerating record")
+	}
+	fmt.Printf("Record regenerated: %s\n", out)
 }

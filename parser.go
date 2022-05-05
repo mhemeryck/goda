@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -10,8 +11,11 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// dateFormat is the common format used parsing / generating timestamps in CODA
+const dateFormat = "020106"
+
 // Prefix error represents the error where the CODA line has a wrong prefix
-type PrefixError struct {}
+type PrefixError struct{}
 
 func (e *PrefixError) Error() string {
 	return fmt.Sprintf("Wrong prefix")
@@ -42,13 +46,13 @@ func parse(s string, t reflect.Type, v reflect.Value) error {
 			}
 			vv.SetInt(int64(value))
 		case reflect.TypeOf(string("")):
-			value := strings.TrimSpace(s[offset : offset+length])
+			value := s[offset : offset+length]
 			vv.SetString(value)
 		case reflect.TypeOf(bool(false)):
 			value := s[offset:offset+length] != ""
 			vv.SetBool(value)
 		case reflect.TypeOf(time.Time{}):
-			value, err := time.Parse("020106", s[offset:offset+length])
+			value, err := time.Parse(dateFormat, s[offset:offset+length])
 			if err != nil {
 				return err
 			}
@@ -64,6 +68,70 @@ func parse(s string, t reflect.Type, v reflect.Value) error {
 		}
 	}
 	return nil
+}
+
+// generate regenerates the CODA file line based on the CODA data
+func generate(t reflect.Type, v reflect.Value) (string, error) {
+	s := make([]rune, 128)
+	// Loop through each of the struct fields
+	for i := 0; i < t.NumField(); i++ {
+		tt := t.Field(i)
+		vv := v.Field(i)
+		// Get the offset and length from the annotated struct fields
+		offset, err := strconv.Atoi(tt.Tag.Get("offset"))
+		if err != nil {
+			return "", err
+		}
+		length, err := strconv.Atoi(tt.Tag.Get("length"))
+		if err != nil {
+			return "", err
+		}
+		// Switch to correct parser by using the field type
+		switch value := vv.Interface().(type) {
+		case int:
+			// Generate format string
+			fmtStr := fmt.Sprintf("%%%dd", length)
+			toStr := fmt.Sprintf(fmtStr, value)
+			for k := 0; k < length; k++ {
+				s[offset + k] = rune(toStr[k])
+			}
+		case string:
+			for k := 0; k < length; k++ {
+				s[offset + k] = rune(value[k])
+			}
+		case bool:
+			if value {
+				s[offset] = '1'
+			} else {
+				s[offset] = '0'
+			}
+		case time.Time:
+			toStr := value.Format(dateFormat)
+			for k := 0; k < length; k++ {
+				s[offset + k] = rune(toStr[k])
+			}
+		case decimal.Decimal:
+			// First shift back again
+			scaled := value.Shift(3)
+			// Then, get the integer part
+			toInt := scaled.IntPart()
+			if scaled.Exponent() != 0 {
+				return string(s), errors.New("Error regenerating for decimal")
+			}
+			// Generate a format string
+			fmtStr := fmt.Sprintf("%%%dd", length)
+			// Format with the format string to string
+			toStr := fmt.Sprintf(fmtStr, toInt)
+			for k := 0; k < length; k++ {
+				s[offset + k] = rune(toStr[k])
+			}
+		default:
+			for k := 0; k < length; k++ {
+				s[offset + k] = rune(0)
+			}
+		}
+	}
+	return string(s), nil
 }
 
 // Parse is the generic record string line parser
