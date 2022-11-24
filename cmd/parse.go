@@ -6,13 +6,18 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"flag"
 
 	"github.com/mhemeryck/goda/goda"
 )
 
-const filename = "./sample.cod"
-
 func main() {
+	flag.Parse()
+	if len(flag.Args()) != 1 {
+		log.Fatal("Expected filename as positional argument")
+	}
+	filename := flag.Args()[0]
+
 	f, err := os.Open(filename)
 	defer f.Close()
 	if err != nil {
