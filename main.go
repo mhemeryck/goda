@@ -330,10 +330,10 @@ const filename = "./sample.cod"
 
 func main() {
 	f, err := os.Open(filename)
-	defer f.Close()
 	if err != nil {
 		log.Fatalf("error opening file %s: %v\n", filename, err)
 	}
+	defer f.Close()
 	scanner := bufio.NewScanner(f)
 
 	records := []Record{}
