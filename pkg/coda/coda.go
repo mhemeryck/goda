@@ -1,10 +1,16 @@
 package coda
 
 import (
+	"io"
 	"time"
 
 	"github.com/shopspring/decimal"
 )
+
+type LineWriter interface {
+	WriteLine(line string) error
+	Flush() error
+}
 
 type HeaderRecord struct {
 	CreationDate             time.Time
@@ -16,6 +22,10 @@ type HeaderRecord struct {
 	IdentificationNumber     string
 	TransactionReference     string
 	RelatedReference         string
+}
+
+func MarshalHeaderRecord(h HeaderRecord, w io.Writer) error {
+	return nil
 }
 
 type OldBalanceRecord struct {
