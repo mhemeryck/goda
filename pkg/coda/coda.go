@@ -1,10 +1,15 @@
 package coda
 
 import (
-	"io"
+	// "io"
 	"time"
 
 	"github.com/shopspring/decimal"
+)
+
+const (
+	HeaderIdentifier = 0
+	recordLength     = 128
 )
 
 type LineWriter interface {
@@ -24,7 +29,8 @@ type HeaderRecord struct {
 	RelatedReference         string
 }
 
-func MarshalHeaderRecord(h HeaderRecord, w io.Writer) error {
+func MarshalHeaderRecord(h HeaderRecord, w LineWriter) error {
+	w.WriteLine("%")
 	return nil
 }
 
@@ -106,7 +112,7 @@ type Statement struct {
 	OldBalance        OldBalanceRecord
 	Movements         *[]Movement
 	Informations      *[]Information
-	NewBalance        NewBalanceRecord
+	NewBalance        *NewBalanceRecord
 	FreeCommunication *FreeCommunicationRecord
 	Trailer           TrailerRecord
 }
